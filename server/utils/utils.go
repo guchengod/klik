@@ -6,7 +6,6 @@ import (
 	"klik/server/config"
 	"klik/server/model"
 	"math/rand"
-	"os"
 	"path/filepath"
 	"time"
 )
