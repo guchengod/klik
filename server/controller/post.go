@@ -1,11 +1,9 @@
 package controller
 
 import (
-	"klik/server/model"
-	"klik/server/utils"
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+	"klik/server/model"
+	"net/http"
 )
 
 // GetRecommendedPosts 获取推荐帖子
@@ -21,24 +19,24 @@ func GetRecommendedPosts(c *gin.Context) {
 		return
 	}
 
-	// 加载帖子数据
-	posts, err := utils.LoadRecommendPosts()
+	// 计算分页
+	offset, limit := model.GetPageRange(params)
+
+	// 从数据库加载帖子数据
+	posts, err := model.GetRecommendPostsFromDB(offset, limit)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
-			Msg:  "加载帖子数据失败",
+			Msg:  "加载帖子数据失败: " + err.Error(),
 			Data: nil,
 		})
 		return
 	}
 
-	// 计算分页
-	offset, limit := model.GetPageRange(params)
-	if offset > len(posts) {
-		offset = 0
-	}
-	if limit > len(posts) {
-		limit = len(posts)
+	// 获取帖子总数
+	total, err := model.GetPostCountFromDB()
+	if err != nil {
+		total = len(posts) // 如果获取总数失败，使用当前列表长度
 	}
 
 	// 返回数据
@@ -47,8 +45,8 @@ func GetRecommendedPosts(c *gin.Context) {
 		Msg:  "",
 		Data: model.PageResponse{
 			PageNo: params.PageNo,
-			Total:  len(posts),
-			List:   posts[offset:limit],
+			Total:  total,
+			List:   posts,
 		},
 	})
 }
@@ -66,32 +64,34 @@ func GetRecommendedShop(c *gin.Context) {
 		return
 	}
 
-	// 加载商品数据
-	goods, err := utils.LoadGoods()
+	// 计算分页
+	offset, limit := model.GetPageRange(params)
+
+	// 从数据库加载商品数据
+	goods, err := model.GetGoodsFromDB(offset, limit)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
-			Msg:  "加载商品数据失败",
+			Msg:  "加载商品数据失败: " + err.Error(),
 			Data: nil,
 		})
 		return
 	}
 
-	// 计算分页
-	offset, limit := model.GetPageRange(params)
-	if offset > len(goods) {
-		offset = 0
-	}
-	if limit > len(goods) {
-		limit = len(goods)
+	// 获取商品总数
+	total, err := model.GetGoodCountFromDB()
+	if err != nil {
+		total = len(goods) // 如果获取总数失败，使用当前列表长度
 	}
 
 	// 返回数据
 	c.JSON(http.StatusOK, model.Response{
 		Code: 200,
+		Msg:  "",
 		Data: model.PageResponse{
-			Total: len(goods),
-			List:  goods[offset:limit],
+			PageNo: params.PageNo,
+			Total:  total,
+			List:   goods,
 		},
 	})
 }

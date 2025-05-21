@@ -1,0 +1,23 @@
+# 服务器配置
+server:
+  baseURL: "/api"
+  fileURL: "/api/file"
+  port: 8080
+
+# 数据库配置
+database:
+  host: "192.168.3.30"
+  port: 30500
+  user: "sgw"
+  password: "sungaowei,."
+  dbname: "douyin"
+  sslmode: "disable"
+  maxOpenConns: 10
+  maxIdleConns: 5
+  useDB: true
+
+# 数据路径配置
+paths:
+  dataPath: "public/data"
+  userVideoListPath: "public/data/user_video_list"
+  commentsPath: "public/data/comments"

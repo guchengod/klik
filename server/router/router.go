@@ -48,9 +48,6 @@ func InitRouter() *gin.Engine {
 			user.GET("/friends", controller.GetUserFriends)
 		}
 
-		// 历史记录接口
-		api.GET("/historyOther", controller.GetHistoryOther)
-
 		// 帖子相关接口
 		post := api.Group("/post")
 		{

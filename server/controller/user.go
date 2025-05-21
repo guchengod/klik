@@ -2,7 +2,6 @@ package controller
 
 import (
 	"klik/server/model"
-	"klik/server/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -10,41 +9,44 @@ import (
 
 // GetUserCollect 获取用户收藏
 func GetUserCollect(c *gin.Context) {
-	// 加载视频数据
-	videos, err := utils.LoadRecommendVideos()
+	// 获取用户ID，实际应该从认证信息中获取
+	userID := "2739632844317827" // 模拟当前登录用户ID
+
+	// 计算分页参数
+	start := 0
+	pageSize := 50
+
+	// 从数据库获取用户收藏的视频
+	videos, err := model.GetUserCollectVideosFromDB(userID, start, pageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
-			Msg:  "加载视频数据失败",
+			Msg:  "加载视频数据失败: " + err.Error(),
 			Data: nil,
 		})
 		return
 	}
 
-	// 加载资源数据
-	resource, err := utils.LoadResource()
+	// 从数据库获取用户收藏的音乐
+	music, err := model.GetUserCollectMusicFromDB(userID, start, pageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
-			Msg:  "加载资源数据失败",
+			Msg:  "加载音乐数据失败: " + err.Error(),
 			Data: nil,
 		})
 		return
 	}
 
-	// 获取音乐数据
-	var music []model.Music
-	if musicData, ok := resource["music"].([]interface{}); ok {
-		for _, item := range musicData {
-			if m, ok := item.(map[string]interface{}); ok {
-				music = append(music, model.Music{
-					ID:     m["id"].(string),
-					Title:  m["title"].(string),
-					Artist: m["artist"].(string),
-					Cover:  m["cover"].(string),
-				})
-			}
-		}
+	// 获取收藏视频和音乐的总数
+	videoCount, err := model.GetUserCollectVideosCountFromDB(userID)
+	if err != nil {
+		videoCount = len(videos) // 如果获取总数失败，使用当前列表长度
+	}
+
+	musicCount, err := model.GetUserCollectMusicCountFromDB(userID)
+	if err != nil {
+		musicCount = len(music) // 如果获取总数失败，使用当前列表长度
 	}
 
 	// 返回数据
@@ -53,11 +55,11 @@ func GetUserCollect(c *gin.Context) {
 		Msg:  "",
 		Data: model.CollectResponse{
 			Video: model.PageResponse{
-				Total: 50,
-				List:  videos[350:400],
+				Total: videoCount,
+				List:  videos,
 			},
 			Music: model.PageResponse{
-				Total: len(music),
+				Total: musicCount,
 				List:  music,
 			},
 		},
@@ -69,11 +71,13 @@ func GetUserVideoList(c *gin.Context) {
 	// 获取参数
 	userID := c.Query("id")
 
-	// 加载用户视频列表
-	videos, err := utils.LoadUserVideoList(userID)
+	// 从数据库加载用户视频列表
+	videos, err := model.GetUserVideoListFromDB(userID)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
+			Msg:  "加载用户视频列表失败: " + err.Error(),
+			Data: nil,
 		})
 		return
 	}
@@ -81,50 +85,55 @@ func GetUserVideoList(c *gin.Context) {
 	// 返回数据
 	c.JSON(http.StatusOK, model.Response{
 		Code: 200,
+		Msg:  "",
 		Data: videos,
 	})
 }
 
 // GetUserPanel 获取用户面板信息
 func GetUserPanel(c *gin.Context) {
-	// 加载用户数据
-	users, err := utils.LoadUsers()
+	// 获取用户ID，实际应该从认证信息中获取
+	userID := "2739632844317827" // 模拟当前登录用户ID
+
+	// 从数据库加载用户信息
+	user, err := model.GetUserByID(userID)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
+			Msg:  "获取用户信息失败: " + err.Error(),
+			Data: nil,
 		})
 		return
-	}
-
-	// 查找指定用户
-	var user model.User
-	for _, u := range users {
-		if u.UID == "2739632844317827" {
-			user = u
-			break
-		}
 	}
 
 	// 返回数据
 	if user.UID != "" {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 200,
+			Msg:  "",
 			Data: user,
 		})
 	} else {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
+			Msg:  "用户不存在",
+			Data: nil,
 		})
 	}
 }
 
 // GetUserFriends 获取用户好友
 func GetUserFriends(c *gin.Context) {
-	// 加载用户数据
-	users, err := utils.LoadUsers()
+	// 获取用户ID，实际应该从认证信息中获取
+	userID := "2739632844317827" // 模拟当前登录用户ID
+
+	// 从数据库加载用户好友列表
+	friends, err := model.GetUserFriendsFromDB(userID)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
+			Msg:  "获取用户好友列表失败: " + err.Error(),
+			Data: nil,
 		})
 		return
 	}
@@ -132,6 +141,7 @@ func GetUserFriends(c *gin.Context) {
 	// 返回数据
 	c.JSON(http.StatusOK, model.Response{
 		Code: 200,
-		Data: users,
+		Msg:  "",
+		Data: friends,
 	})
 }

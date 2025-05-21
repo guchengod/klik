@@ -1,12 +1,10 @@
 package controller
 
 import (
+	"github.com/gin-gonic/gin"
 	"klik/server/model"
-	"klik/server/utils"
 	"net/http"
 	"strconv"
-
-	"github.com/gin-gonic/gin"
 )
 
 // GetRecommendedVideos 获取推荐视频
@@ -15,24 +13,23 @@ func GetRecommendedVideos(c *gin.Context) {
 	start, _ := strconv.Atoi(c.Query("start"))
 	pageSize, _ := strconv.Atoi(c.Query("pageSize"))
 
-	// 加载视频数据
-	videos, err := utils.LoadRecommendVideos()
+	// 检查参数
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+
+	var videos []model.Video
+	var err error
+
+	// 从数据库加载视频数据
+	videos, err = model.GetRecommendVideosFromDB(start, pageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
-			Msg:  "加载视频数据失败",
+			Msg:  "加载视频数据失败: " + err.Error(),
 			Data: nil,
 		})
 		return
-	}
-
-	// 计算分页
-	end := start + pageSize
-	if end > len(videos) {
-		end = len(videos)
-	}
-	if start > len(videos) {
-		start = 0
 	}
 
 	// 返回数据
@@ -41,7 +38,7 @@ func GetRecommendedVideos(c *gin.Context) {
 		Msg:  "",
 		Data: model.PageResponse{
 			Total: 844,
-			List:  videos[start:end],
+			List:  videos,
 		},
 	})
 }
@@ -59,24 +56,31 @@ func GetLongRecommendedVideos(c *gin.Context) {
 		return
 	}
 
-	// 加载视频数据
-	videos, err := utils.LoadRecommendVideos()
+	// 检查参数
+	if params.PageSize <= 0 {
+		params.PageSize = 10
+	}
+
+	// 计算分页参数
+	start := (params.PageNo - 1) * params.PageSize
+	pageSize := params.PageSize
+
+	// 从数据库加载视频数据
+	videos, err := model.GetLongRecommendVideosFromDB(start, pageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
-			Msg:  "加载视频数据失败",
+			Msg:  "加载视频数据失败: " + err.Error(),
 			Data: nil,
 		})
 		return
 	}
 
-	// 计算分页
-	offset, limit := model.GetPageRange(params)
-	if offset > len(videos) {
-		offset = 0
-	}
-	if limit > len(videos) {
-		limit = len(videos)
+	// 获取长视频总数
+	total, err := model.GetVideoCountFromDB("long-video")
+	if err != nil {
+		// 如果获取总数失败，使用默认值
+		total = 844
 	}
 
 	// 返回数据
@@ -84,8 +88,9 @@ func GetLongRecommendedVideos(c *gin.Context) {
 		Code: 200,
 		Msg:  "",
 		Data: model.PageResponse{
-			Total: 844,
-			List:  videos[offset:limit],
+			PageNo: params.PageNo,
+			Total:  total,
+			List:   videos,
 		},
 	})
 }
@@ -96,10 +101,11 @@ func GetVideoComments(c *gin.Context) {
 	videoID := c.Query("id")
 
 	// 加载评论数据
-	comments, err := utils.LoadVideoComments(videoID)
+	comments, err := model.GetVideoCommentsFromPostgres(videoID)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
+			Msg:  "加载评论数据失败: " + err.Error(),
 			Data: nil,
 		})
 		return
@@ -108,6 +114,7 @@ func GetVideoComments(c *gin.Context) {
 	// 返回数据
 	c.JSON(http.StatusOK, model.Response{
 		Code: 200,
+		Msg:  "",
 		Data: comments,
 	})
 }
@@ -125,26 +132,31 @@ func GetPrivateVideos(c *gin.Context) {
 		return
 	}
 
-	// 加载视频数据
-	videos, err := utils.LoadRecommendVideos()
+	// 检查参数
+	if params.PageSize <= 0 {
+		params.PageSize = 10
+	}
+
+	// 计算分页参数
+	start := (params.PageNo - 1) * params.PageSize
+	pageSize := params.PageSize
+
+	// 从数据库加载视频数据
+	videos, err := model.GetPrivateVideosFromDB(start, pageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
-			Msg:  "加载视频数据失败",
+			Msg:  "加载视频数据失败: " + err.Error(),
 			Data: nil,
 		})
 		return
 	}
 
-	// 计算分页
-	offset, limit := model.GetPageRange(params)
-	start := 100
-	end := 110
-	if start+offset > len(videos) {
-		offset = 0
-	}
-	if start+limit > len(videos) {
-		limit = len(videos) - start
+	// 获取私有视频总数
+	total, err := model.GetVideoCountFromDB("private-video")
+	if err != nil {
+		// 如果获取总数失败，使用默认值
+		total = 10
 	}
 
 	// 返回数据
@@ -152,8 +164,9 @@ func GetPrivateVideos(c *gin.Context) {
 		Code: 200,
 		Msg:  "",
 		Data: model.PageResponse{
-			Total: 10,
-			List:  videos[start:end][offset:limit],
+			PageNo: params.PageNo,
+			Total:  total,
+			List:   videos,
 		},
 	})
 }
@@ -171,26 +184,32 @@ func GetLikedVideos(c *gin.Context) {
 		return
 	}
 
-	// 加载视频数据
-	videos, err := utils.LoadRecommendVideos()
+	// 检查参数
+	if params.PageSize <= 0 {
+		params.PageSize = 10
+	}
+
+	// 计算分页参数
+	start := (params.PageNo - 1) * params.PageSize
+	pageSize := params.PageSize
+
+	// 从数据库加载视频数据
+	videos, err := model.GetLikedVideosFromDB(start, pageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
-			Msg:  "加载视频数据失败",
+			Msg:  "加载视频数据失败: " + err.Error(),
 			Data: nil,
 		})
 		return
 	}
 
-	// 计算分页
-	offset, limit := model.GetPageRange(params)
-	start := 200
-	end := 350
-	if start+offset > len(videos) {
-		offset = 0
-	}
-	if start+limit > len(videos) {
-		limit = len(videos) - start
+	// 获取喜欢的视频总数
+	// 注意：这里需要一个特殊的函数来获取当前用户喜欢的视频总数
+	// 暂时使用固定值或者视频列表长度
+	total := len(videos)
+	if total == 0 {
+		total = 150 // 默认值
 	}
 
 	// 返回数据
@@ -198,8 +217,9 @@ func GetLikedVideos(c *gin.Context) {
 		Code: 200,
 		Msg:  "",
 		Data: model.PageResponse{
-			Total: 150,
-			List:  videos[start:end][offset:limit],
+			PageNo: params.PageNo,
+			Total:  total,
+			List:   videos,
 		},
 	})
 }
@@ -217,25 +237,30 @@ func GetMyVideos(c *gin.Context) {
 		return
 	}
 
-	// 加载视频数据
-	videos, err := utils.LoadUserVideos()
+	// 检查参数
+	if params.PageSize <= 0 {
+		params.PageSize = 10
+	}
+
+	// 计算分页参数
+	start := (params.PageNo - 1) * params.PageSize
+	pageSize := params.PageSize
+
+	// 从数据库加载视频数据
+	videos, err := model.GetMyVideosFromDB(start, pageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
-			Msg:  "加载视频数据失败",
+			Msg:  "加载视频数据失败: " + err.Error(),
 			Data: nil,
 		})
 		return
 	}
 
-	// 计算分页
-	offset, limit := model.GetPageRange(params)
-	if offset > len(videos) {
-		offset = 0
-	}
-	if limit > len(videos) {
-		limit = len(videos)
-	}
+	// 获取我的视频总数
+	// 注意：这里需要一个特殊的函数来获取当前用户的视频总数
+	// 暂时使用视频列表长度
+	total := len(videos)
 
 	// 返回数据
 	c.JSON(http.StatusOK, model.Response{
@@ -243,8 +268,8 @@ func GetMyVideos(c *gin.Context) {
 		Msg:  "",
 		Data: model.PageResponse{
 			PageNo: params.PageNo,
-			Total:  len(videos),
-			List:   videos[offset:limit],
+			Total:  total,
+			List:   videos,
 		},
 	})
 }
@@ -262,50 +287,32 @@ func GetHistoryVideos(c *gin.Context) {
 		return
 	}
 
-	// 加载视频数据
-	videos, err := utils.LoadRecommendVideos()
+	// 检查参数
+	if params.PageSize <= 0 {
+		params.PageSize = 10
+	}
+
+	// 计算分页参数
+	start := (params.PageNo - 1) * params.PageSize
+	pageSize := params.PageSize
+
+	// 从数据库加载视频数据
+	videos, err := model.GetHistoryVideosFromDB(start, pageSize)
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code: 500,
-			Msg:  "加载视频数据失败",
+			Msg:  "加载视频数据失败: " + err.Error(),
 			Data: nil,
 		})
 		return
 	}
 
-	// 计算分页
-	offset, limit := model.GetPageRange(params)
-	start := 200
-	end := 350
-	if start+offset > len(videos) {
-		offset = 0
-	}
-	if start+limit > len(videos) {
-		limit = len(videos) - start
-	}
-
-	// 返回数据
-	c.JSON(http.StatusOK, model.Response{
-		Code: 200,
-		Msg:  "",
-		Data: model.PageResponse{
-			Total: 150,
-			List:  videos[start:end][offset:limit],
-		},
-	})
-}
-
-// GetHistoryOther 获取其他历史记录
-func GetHistoryOther(c *gin.Context) {
-	// 获取参数
-	var params model.PageParams
-	if err := c.ShouldBindQuery(&params); err != nil {
-		c.JSON(http.StatusOK, model.Response{
-			Code: 500,
-			Msg:  "参数错误",
-			Data: nil,
-		})
-		return
+	// 获取历史视频总数
+	// 注意：这里需要一个特殊的函数来获取当前用户的历史视频总数
+	// 暂时使用视频列表长度或默认值
+	total := len(videos)
+	if total == 0 {
+		total = 150 // 默认值
 	}
 
 	// 返回数据
@@ -314,8 +321,8 @@ func GetHistoryOther(c *gin.Context) {
 		Msg:  "",
 		Data: model.PageResponse{
 			PageNo: params.PageNo,
-			Total:  0,
-			List:   []interface{}{},
+			Total:  total,
+			List:   videos,
 		},
 	})
 }
