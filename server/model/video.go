@@ -14,7 +14,7 @@ func GetRecommendVideosFromDB(start, pageSize int) ([]Video, error) {
 			SELECT v.id, v.aweme_id, v.video_desc, v.create_time, v.author_user_id, v.duration,
 			       u.uid, u.nickname, u.gender, u.signature, 
 			       vs.comment_count, vs.digg_count, vs.collect_count, vs.share_count,
-			       vs.play_count, vs.admire_count
+			       vs.play_count, vs.collect_count
 			FROM videos v
 			LEFT JOIN users u ON v.author_user_id = u.uid
 			LEFT JOIN video_statistics vs ON v.id = vs.video_id
@@ -34,13 +34,13 @@ func GetRecommendVideosFromDB(start, pageSize int) ([]Video, error) {
 		var videos []Video
 		for rows.Next() {
 			var (
-				videoID, awemeID, desc, authorUserID string
-				createTime                          int64
-				duration                            int
-				userUID, nickname, signature        string
-				gender                              int
+				videoID, awemeID, desc, authorUserID              string
+				createTime                                        int64
+				duration                                          int
+				userUID, nickname, signature                      string
+				gender                                            int
 				commentCount, diggCount, collectCount, shareCount int
-				playCount, admireCount              int
+				playCount, admireCount                            int
 			)
 
 			// 扫描行数据
@@ -56,7 +56,7 @@ func GetRecommendVideosFromDB(start, pageSize int) ([]Video, error) {
 
 			// 获取用户头像
 			avatarQuery := `
-				SELECT uri, url, cover_type FROM cover_urls 
+				SELECT uri_path, url_path, cover_type FROM cover_urls 
 				WHERE user_id = (SELECT id FROM users WHERE uid = $1) 
 				AND (cover_type = 'avatar_168x168' OR cover_type = 'avatar_300x300')
 			`
@@ -97,7 +97,7 @@ func GetRecommendVideosFromDB(start, pageSize int) ([]Video, error) {
 
 			// 获取视频地址
 			playAddrQuery := `
-				SELECT uri, url, width, height, data_size, file_hash, file_cs FROM video_play_urls
+				SELECT uri, url, width, height, data_size, file_hash FROM video_play_addresses
 				WHERE video_id = $1
 				LIMIT 1
 			`
@@ -120,9 +120,9 @@ func GetRecommendVideosFromDB(start, pageSize int) ([]Video, error) {
 			// 获取音乐信息
 			musicQuery := `
 				SELECT m.id, m.title, m.author, m.duration, m.play_url, m.owner_id, m.owner_nickname, m.is_original
-				FROM musics m
-				JOIN video_musics vm ON m.id = vm.music_id
-				WHERE vm.video_id = $1
+				FROM music m
+				JOIN videos vm ON m.id = vm.music_id
+				WHERE vm.id = $1
 				LIMIT 1
 			`
 			var musicID int64
@@ -139,12 +139,12 @@ func GetRecommendVideosFromDB(start, pageSize int) ([]Video, error) {
 
 			// 构建视频对象
 			video := Video{
-				AwemeID:    awemeID,
-				Desc:       desc,
-				CreateTime: createTime,
-				ShareURL:   fmt.Sprintf("https://example.com/share/%s", awemeID),
-				Duration:   duration,
-				AuthorUserID: authorUserID,
+				AwemeID:         awemeID,
+				Desc:            desc,
+				CreateTime:      createTime,
+				ShareURL:        fmt.Sprintf("https://example.com/share/%s", awemeID),
+				Duration:        duration,
+				AuthorUserID:    authorUserID,
 				PreventDownload: false,
 				Music: MusicInfo{
 					ID:            musicID,
@@ -192,11 +192,11 @@ func GetRecommendVideosFromDB(start, pageSize int) ([]Video, error) {
 						Width:   0,
 						Height:  0,
 					},
-					Height:        height,
-					Width:         width,
-					Ratio:         "540p",
+					Height:         height,
+					Width:          width,
+					Ratio:          "540p",
 					UseStaticCover: false,
-					Duration:      duration,
+					Duration:       duration,
 				},
 				Statistics: Statistics{
 					AdmireCount:  admireCount,
@@ -208,12 +208,12 @@ func GetRecommendVideosFromDB(start, pageSize int) ([]Video, error) {
 				},
 				Status: StatusInfo{
 					ListenVideoStatus: 0,
-					IsDelete:         false,
-					AllowShare:       true,
-					IsProhibited:     false,
-					InReviewing:      false,
-					PartSee:          0,
-					PrivateStatus:    0,
+					IsDelete:          false,
+					AllowShare:        true,
+					IsProhibited:      false,
+					InReviewing:       false,
+					PartSee:           0,
+					PrivateStatus:     0,
 					ReviewResult: ReviewResult{
 						ReviewStatus: 0,
 					},
@@ -231,10 +231,10 @@ func GetRecommendVideosFromDB(start, pageSize int) ([]Video, error) {
 					CanShowComment: true,
 				},
 				Author: Author{
-					UID:        userUID,
-					Nickname:   nickname,
-					Gender:     gender,
-					Signature:  signature,
+					UID:       userUID,
+					Nickname:  nickname,
+					Gender:    gender,
+					Signature: signature,
 					Avatar168x168: Avatar{
 						URI:     avatar168URI,
 						URLList: []string{avatar168URL},
@@ -280,7 +280,7 @@ func GetLongRecommendVideosFromDB(offset, limit int) ([]Video, error) {
 			SELECT v.id, v.aweme_id, v.video_desc, v.create_time, v.author_user_id, v.duration,
 			       u.uid, u.nickname, u.gender, u.signature, 
 			       vs.comment_count, vs.digg_count, vs.collect_count, vs.share_count,
-			       vs.play_count, vs.admire_count
+			       vs.play_count, vs.collect_count
 			FROM videos v
 			LEFT JOIN users u ON v.author_user_id = u.uid
 			LEFT JOIN video_statistics vs ON v.id = vs.video_id
@@ -300,13 +300,13 @@ func GetLongRecommendVideosFromDB(offset, limit int) ([]Video, error) {
 		var videos []Video
 		for rows.Next() {
 			var (
-				videoID, awemeID, desc, authorUserID string
-				createTime                          int64
-				duration                            int
-				userUID, nickname, signature        string
-				gender                              int
+				videoID, awemeID, desc, authorUserID              string
+				createTime                                        int64
+				duration                                          int
+				userUID, nickname, signature                      string
+				gender                                            int
 				commentCount, diggCount, collectCount, shareCount int
-				playCount, admireCount              int
+				playCount, admireCount                            int
 			)
 
 			// 扫描行数据
@@ -322,7 +322,7 @@ func GetLongRecommendVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 获取用户头像
 			avatarQuery := `
-				SELECT uri, url, cover_type FROM cover_urls 
+				SELECT uri_path, url_path, cover_type FROM cover_urls 
 				WHERE user_id = (SELECT id FROM users WHERE uid = $1) 
 				AND (cover_type = 'avatar_168x168' OR cover_type = 'avatar_300x300')
 			`
@@ -363,7 +363,7 @@ func GetLongRecommendVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 获取视频地址
 			playAddrQuery := `
-				SELECT uri, url, width, height, data_size, file_hash, file_cs FROM video_play_urls
+				SELECT uri, url, width, height, data_size, file_hash FROM video_play_addresses
 				WHERE video_id = $1
 				LIMIT 1
 			`
@@ -386,9 +386,9 @@ func GetLongRecommendVideosFromDB(offset, limit int) ([]Video, error) {
 			// 获取音乐信息
 			musicQuery := `
 				SELECT m.id, m.title, m.author, m.duration, m.play_url, m.owner_id, m.owner_nickname, m.is_original
-				FROM musics m
-				JOIN video_musics vm ON m.id = vm.music_id
-				WHERE vm.video_id = $1
+				FROM music m
+				JOIN videos vm ON m.id = vm.music_id
+				WHERE vm.id = $1
 				LIMIT 1
 			`
 			var musicID int64
@@ -405,12 +405,12 @@ func GetLongRecommendVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 构建视频对象
 			video := Video{
-				AwemeID:    awemeID,
-				Desc:       desc,
-				CreateTime: createTime,
-				ShareURL:   fmt.Sprintf("https://example.com/share/%s", awemeID),
-				Duration:   duration,
-				AuthorUserID: authorUserID,
+				AwemeID:         awemeID,
+				Desc:            desc,
+				CreateTime:      createTime,
+				ShareURL:        fmt.Sprintf("https://example.com/share/%s", awemeID),
+				Duration:        duration,
+				AuthorUserID:    authorUserID,
 				PreventDownload: false,
 				Music: MusicInfo{
 					ID:            musicID,
@@ -458,11 +458,11 @@ func GetLongRecommendVideosFromDB(offset, limit int) ([]Video, error) {
 						Width:   0,
 						Height:  0,
 					},
-					Height:        height,
-					Width:         width,
-					Ratio:         "540p",
+					Height:         height,
+					Width:          width,
+					Ratio:          "540p",
 					UseStaticCover: false,
-					Duration:      duration,
+					Duration:       duration,
 				},
 				Statistics: Statistics{
 					AdmireCount:  admireCount,
@@ -474,12 +474,12 @@ func GetLongRecommendVideosFromDB(offset, limit int) ([]Video, error) {
 				},
 				Status: StatusInfo{
 					ListenVideoStatus: 0,
-					IsDelete:         false,
-					AllowShare:       true,
-					IsProhibited:     false,
-					InReviewing:      false,
-					PartSee:          0,
-					PrivateStatus:    0,
+					IsDelete:          false,
+					AllowShare:        true,
+					IsProhibited:      false,
+					InReviewing:       false,
+					PartSee:           0,
+					PrivateStatus:     0,
 					ReviewResult: ReviewResult{
 						ReviewStatus: 0,
 					},
@@ -497,10 +497,10 @@ func GetLongRecommendVideosFromDB(offset, limit int) ([]Video, error) {
 					CanShowComment: true,
 				},
 				Author: Author{
-					UID:        userUID,
-					Nickname:   nickname,
-					Gender:     gender,
-					Signature:  signature,
+					UID:       userUID,
+					Nickname:  nickname,
+					Gender:    gender,
+					Signature: signature,
 					Avatar168x168: Avatar{
 						URI:     avatar168URI,
 						URLList: []string{avatar168URL},
@@ -546,7 +546,7 @@ func GetPrivateVideosFromDB(offset, limit int) ([]Video, error) {
 			SELECT v.id, v.aweme_id, v.video_desc, v.create_time, v.author_user_id, v.duration,
 			       u.uid, u.nickname, u.gender, u.signature, 
 			       vs.comment_count, vs.digg_count, vs.collect_count, vs.share_count,
-			       vs.play_count, vs.admire_count
+			       vs.play_count, vs.collect_count
 			FROM videos v
 			LEFT JOIN users u ON v.author_user_id = u.uid
 			LEFT JOIN video_statistics vs ON v.id = vs.video_id
@@ -566,13 +566,13 @@ func GetPrivateVideosFromDB(offset, limit int) ([]Video, error) {
 		var videos []Video
 		for rows.Next() {
 			var (
-				videoID, awemeID, desc, authorUserID string
-				createTime                          int64
-				duration                            int
-				userUID, nickname, signature        string
-				gender                              int
+				videoID, awemeID, desc, authorUserID              string
+				createTime                                        int64
+				duration                                          int
+				userUID, nickname, signature                      string
+				gender                                            int
 				commentCount, diggCount, collectCount, shareCount int
-				playCount, admireCount              int
+				playCount, admireCount                            int
 			)
 
 			// 扫描行数据
@@ -588,7 +588,7 @@ func GetPrivateVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 获取用户头像
 			avatarQuery := `
-				SELECT uri, url, cover_type FROM cover_urls 
+				SELECT uri_path, url_path, cover_type FROM cover_urls 
 				WHERE user_id = (SELECT id FROM users WHERE uid = $1) 
 				AND (cover_type = 'avatar_168x168' OR cover_type = 'avatar_300x300')
 			`
@@ -629,7 +629,7 @@ func GetPrivateVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 获取视频地址
 			playAddrQuery := `
-				SELECT uri, url, width, height, data_size, file_hash, file_cs FROM video_play_urls
+				SELECT uri, url, width, height, data_size, file_hash FROM video_play_addresses
 				WHERE video_id = $1
 				LIMIT 1
 			`
@@ -652,9 +652,9 @@ func GetPrivateVideosFromDB(offset, limit int) ([]Video, error) {
 			// 获取音乐信息
 			musicQuery := `
 				SELECT m.id, m.title, m.author, m.duration, m.play_url, m.owner_id, m.owner_nickname, m.is_original
-				FROM musics m
-				JOIN video_musics vm ON m.id = vm.music_id
-				WHERE vm.video_id = $1
+				FROM music m
+				JOIN videos vm ON m.id = vm.music_id
+				WHERE vm.id = $1
 				LIMIT 1
 			`
 			var musicID int64
@@ -671,12 +671,12 @@ func GetPrivateVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 构建视频对象
 			video := Video{
-				AwemeID:    awemeID,
-				Desc:       desc,
-				CreateTime: createTime,
-				ShareURL:   fmt.Sprintf("https://example.com/share/%s", awemeID),
-				Duration:   duration,
-				AuthorUserID: authorUserID,
+				AwemeID:         awemeID,
+				Desc:            desc,
+				CreateTime:      createTime,
+				ShareURL:        fmt.Sprintf("https://example.com/share/%s", awemeID),
+				Duration:        duration,
+				AuthorUserID:    authorUserID,
 				PreventDownload: false,
 				Music: MusicInfo{
 					ID:            musicID,
@@ -724,11 +724,11 @@ func GetPrivateVideosFromDB(offset, limit int) ([]Video, error) {
 						Width:   0,
 						Height:  0,
 					},
-					Height:        height,
-					Width:         width,
-					Ratio:         "540p",
+					Height:         height,
+					Width:          width,
+					Ratio:          "540p",
 					UseStaticCover: false,
-					Duration:      duration,
+					Duration:       duration,
 				},
 				Statistics: Statistics{
 					AdmireCount:  admireCount,
@@ -740,12 +740,12 @@ func GetPrivateVideosFromDB(offset, limit int) ([]Video, error) {
 				},
 				Status: StatusInfo{
 					ListenVideoStatus: 0,
-					IsDelete:         false,
-					AllowShare:       true,
-					IsProhibited:     false,
-					InReviewing:      false,
-					PartSee:          0,
-					PrivateStatus:    0,
+					IsDelete:          false,
+					AllowShare:        true,
+					IsProhibited:      false,
+					InReviewing:       false,
+					PartSee:           0,
+					PrivateStatus:     0,
 					ReviewResult: ReviewResult{
 						ReviewStatus: 0,
 					},
@@ -763,10 +763,10 @@ func GetPrivateVideosFromDB(offset, limit int) ([]Video, error) {
 					CanShowComment: true,
 				},
 				Author: Author{
-					UID:        userUID,
-					Nickname:   nickname,
-					Gender:     gender,
-					Signature:  signature,
+					UID:       userUID,
+					Nickname:  nickname,
+					Gender:    gender,
+					Signature: signature,
 					Avatar168x168: Avatar{
 						URI:     avatar168URI,
 						URLList: []string{avatar168URL},
@@ -812,12 +812,12 @@ func GetLikedVideosFromDB(offset, limit int) ([]Video, error) {
 			SELECT v.id, v.aweme_id, v.video_desc, v.create_time, v.author_user_id, v.duration,
 			       u.uid, u.nickname, u.gender, u.signature, 
 			       vs.comment_count, vs.digg_count, vs.collect_count, vs.share_count,
-			       vs.play_count, vs.admire_count
+			       vs.play_count, vs.collect_count
 			FROM videos v
 			LEFT JOIN users u ON v.author_user_id = u.uid
 			LEFT JOIN video_statistics vs ON v.id = vs.video_id
 			LEFT JOIN user_like_videos ulv ON v.id = ulv.video_id
-			WHERE ulv.user_id = (SELECT id FROM users WHERE uid = 'current_user_id') -- 实际应该使用当前登录用户的ID
+			WHERE ulv.id = (SELECT id FROM users WHERE uid = 'current_user_id') -- 实际应该使用当前登录用户的ID
 			ORDER BY ulv.created_at DESC
 			LIMIT $1 OFFSET $2
 		`
@@ -833,13 +833,13 @@ func GetLikedVideosFromDB(offset, limit int) ([]Video, error) {
 		var videos []Video
 		for rows.Next() {
 			var (
-				videoID, awemeID, desc, authorUserID string
-				createTime                          int64
-				duration                            int
-				userUID, nickname, signature        string
-				gender                              int
+				videoID, awemeID, desc, authorUserID              string
+				createTime                                        int64
+				duration                                          int
+				userUID, nickname, signature                      string
+				gender                                            int
 				commentCount, diggCount, collectCount, shareCount int
-				playCount, admireCount              int
+				playCount, admireCount                            int
 			)
 
 			// 扫描行数据
@@ -855,7 +855,7 @@ func GetLikedVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 获取用户头像
 			avatarQuery := `
-				SELECT uri, url, cover_type FROM cover_urls 
+				SELECT uri_path, url_path, cover_type FROM cover_urls 
 				WHERE user_id = (SELECT id FROM users WHERE uid = $1) 
 				AND (cover_type = 'avatar_168x168' OR cover_type = 'avatar_300x300')
 			`
@@ -896,7 +896,7 @@ func GetLikedVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 获取视频地址
 			playAddrQuery := `
-				SELECT uri, url, width, height, data_size, file_hash, file_cs FROM video_play_urls
+				SELECT uri, url, width, height, data_size, file_hash FROM video_play_addresses
 				WHERE video_id = $1
 				LIMIT 1
 			`
@@ -919,9 +919,9 @@ func GetLikedVideosFromDB(offset, limit int) ([]Video, error) {
 			// 获取音乐信息
 			musicQuery := `
 				SELECT m.id, m.title, m.author, m.duration, m.play_url, m.owner_id, m.owner_nickname, m.is_original
-				FROM musics m
-				JOIN video_musics vm ON m.id = vm.music_id
-				WHERE vm.video_id = $1
+				FROM music m
+				JOIN videos vm ON m.id = vm.music_id
+				WHERE vm.id = $1
 				LIMIT 1
 			`
 			var musicID int64
@@ -938,12 +938,12 @@ func GetLikedVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 构建视频对象
 			video := Video{
-				AwemeID:    awemeID,
-				Desc:       desc,
-				CreateTime: createTime,
-				ShareURL:   fmt.Sprintf("https://example.com/share/%s", awemeID),
-				Duration:   duration,
-				AuthorUserID: authorUserID,
+				AwemeID:         awemeID,
+				Desc:            desc,
+				CreateTime:      createTime,
+				ShareURL:        fmt.Sprintf("https://example.com/share/%s", awemeID),
+				Duration:        duration,
+				AuthorUserID:    authorUserID,
 				PreventDownload: false,
 				Music: MusicInfo{
 					ID:            musicID,
@@ -991,11 +991,11 @@ func GetLikedVideosFromDB(offset, limit int) ([]Video, error) {
 						Width:   0,
 						Height:  0,
 					},
-					Height:        height,
-					Width:         width,
-					Ratio:         "540p",
+					Height:         height,
+					Width:          width,
+					Ratio:          "540p",
 					UseStaticCover: false,
-					Duration:      duration,
+					Duration:       duration,
 				},
 				Statistics: Statistics{
 					AdmireCount:  admireCount,
@@ -1007,12 +1007,12 @@ func GetLikedVideosFromDB(offset, limit int) ([]Video, error) {
 				},
 				Status: StatusInfo{
 					ListenVideoStatus: 0,
-					IsDelete:         false,
-					AllowShare:       true,
-					IsProhibited:     false,
-					InReviewing:      false,
-					PartSee:          0,
-					PrivateStatus:    0,
+					IsDelete:          false,
+					AllowShare:        true,
+					IsProhibited:      false,
+					InReviewing:       false,
+					PartSee:           0,
+					PrivateStatus:     0,
 					ReviewResult: ReviewResult{
 						ReviewStatus: 0,
 					},
@@ -1030,10 +1030,10 @@ func GetLikedVideosFromDB(offset, limit int) ([]Video, error) {
 					CanShowComment: true,
 				},
 				Author: Author{
-					UID:        userUID,
-					Nickname:   nickname,
-					Gender:     gender,
-					Signature:  signature,
+					UID:       userUID,
+					Nickname:  nickname,
+					Gender:    gender,
+					Signature: signature,
 					Avatar168x168: Avatar{
 						URI:     avatar168URI,
 						URLList: []string{avatar168URL},
@@ -1098,10 +1098,10 @@ func GetMyVideosFromDB(offset, limit int) ([]Video, error) {
 		var videos []Video
 		for rows.Next() {
 			var (
-				videoID, awemeID, desc, authorUserID   string
-				createTime                          int64
-				duration                            int
-				userUID, nickname, signature, gender string
+				videoID, awemeID, desc, authorUserID              string
+				createTime                                        int64
+				duration                                          int
+				userUID, nickname, signature, gender              string
 				commentCount, diggCount, collectCount, shareCount int
 			)
 
@@ -1117,7 +1117,7 @@ func GetMyVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 获取用户头像
 			avatarQuery := `
-				SELECT url, cover_type FROM cover_urls 
+				SELECT url_path, cover_type FROM cover_urls 
 				WHERE user_id = (SELECT id FROM users WHERE uid = $1) 
 				AND (cover_type = 'avatar_168x168' OR cover_type = 'avatar_300x300')
 			`
@@ -1144,12 +1144,12 @@ func GetMyVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 构建视频对象
 			video := Video{
-				AwemeID:    awemeID,
-				Desc:       desc,
-				CreateTime: createTime,
-				ShareURL:   fmt.Sprintf("https://example.com/share/%s", awemeID),
-				Duration:   duration,
-				AuthorUserID: authorUserID,
+				AwemeID:         awemeID,
+				Desc:            desc,
+				CreateTime:      createTime,
+				ShareURL:        fmt.Sprintf("https://example.com/share/%s", awemeID),
+				Duration:        duration,
+				AuthorUserID:    authorUserID,
 				PreventDownload: false,
 				VideoInfo: VideoInfo{
 					PlayAddr: PlayAddr{
@@ -1168,11 +1168,11 @@ func GetMyVideosFromDB(offset, limit int) ([]Video, error) {
 						Width:   0,
 						Height:  0,
 					},
-					Height:        0,
-					Width:         0,
-					Ratio:         "540p",
+					Height:         0,
+					Width:          0,
+					Ratio:          "540p",
 					UseStaticCover: false,
-					Duration:      duration,
+					Duration:       duration,
 				},
 				Statistics: Statistics{
 					AdmireCount:  0,
@@ -1184,12 +1184,12 @@ func GetMyVideosFromDB(offset, limit int) ([]Video, error) {
 				},
 				Status: StatusInfo{
 					ListenVideoStatus: 0,
-					IsDelete:         false,
-					AllowShare:       true,
-					IsProhibited:     false,
-					InReviewing:      false,
-					PartSee:          0,
-					PrivateStatus:    0,
+					IsDelete:          false,
+					AllowShare:        true,
+					IsProhibited:      false,
+					InReviewing:       false,
+					PartSee:           0,
+					PrivateStatus:     0,
 					ReviewResult: ReviewResult{
 						ReviewStatus: 0,
 					},
@@ -1207,10 +1207,10 @@ func GetMyVideosFromDB(offset, limit int) ([]Video, error) {
 					CanShowComment: true,
 				},
 				Author: Author{
-					UID:        userUID,
-					Nickname:   nickname,
-					Gender:     genderToInt(gender),
-					Signature:  signature,
+					UID:       userUID,
+					Nickname:  nickname,
+					Gender:    genderToInt(gender),
+					Signature: signature,
 					Avatar168x168: Avatar{
 						URI:     "",
 						URLList: []string{avatar168URL},
@@ -1255,7 +1255,7 @@ func GetHistoryVideosFromDB(offset, limit int) ([]Video, error) {
 		query := `
 			SELECT v.id, v.aweme_id, v.video_desc, v.create_time, v.author_user_id, v.duration, 
 			       u.uid, u.nickname, u.gender, u.signature, 
-			       vs.comment_count, vs.digg_count, vs.collect_count, vs.share_count, vs.play_count, vs.admire_count
+			       vs.comment_count, vs.digg_count, vs.collect_count, vs.share_count, vs.play_count, vs.collect_count
 			FROM videos v
 			LEFT JOIN users u ON v.author_user_id = u.uid
 			LEFT JOIN video_statistics vs ON v.id = vs.video_id
@@ -1296,7 +1296,7 @@ func GetHistoryVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 获取用户头像
 			avatarQuery := `
-				SELECT uri, url, cover_type FROM cover_urls 
+				SELECT uri_path, url_path, cover_type FROM cover_urls 
 				WHERE user_id = (SELECT id FROM users WHERE uid = $1) 
 				AND (cover_type = 'avatar_168x168' OR cover_type = 'avatar_300x300')
 			`
@@ -1337,7 +1337,7 @@ func GetHistoryVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 获取视频地址
 			playAddrQuery := `
-				SELECT uri, url, width, height, data_size, file_hash, file_cs FROM video_play_urls
+				SELECT uri, url, width, height, data_size, file_hash FROM video_play_addresses
 				WHERE video_id = $1
 				LIMIT 1
 			`
@@ -1360,9 +1360,9 @@ func GetHistoryVideosFromDB(offset, limit int) ([]Video, error) {
 			// 获取音乐信息
 			musicQuery := `
 				SELECT m.id, m.title, m.author, m.duration, m.play_url, m.owner_id, m.owner_nickname, m.is_original
-				FROM musics m
-				JOIN video_musics vm ON m.id = vm.music_id
-				WHERE vm.video_id = $1
+				FROM music m
+				JOIN videos vm ON m.id = vm.music_id
+				WHERE vm.id = $1
 				LIMIT 1
 			`
 			var musicID int64
@@ -1379,12 +1379,12 @@ func GetHistoryVideosFromDB(offset, limit int) ([]Video, error) {
 
 			// 构建视频对象
 			video := Video{
-				AwemeID:    awemeID,
-				Desc:       desc,
-				CreateTime: createTime,
-				ShareURL:   fmt.Sprintf("https://example.com/share/%s", awemeID),
-				Duration:   duration,
-				AuthorUserID: authorUserID,
+				AwemeID:         awemeID,
+				Desc:            desc,
+				CreateTime:      createTime,
+				ShareURL:        fmt.Sprintf("https://example.com/share/%s", awemeID),
+				Duration:        duration,
+				AuthorUserID:    authorUserID,
 				PreventDownload: false,
 				Music: MusicInfo{
 					ID:            musicID,
@@ -1432,11 +1432,11 @@ func GetHistoryVideosFromDB(offset, limit int) ([]Video, error) {
 						Width:   0,
 						Height:  0,
 					},
-					Height:        height,
-					Width:         width,
-					Ratio:         "540p",
+					Height:         height,
+					Width:          width,
+					Ratio:          "540p",
 					UseStaticCover: false,
-					Duration:      duration,
+					Duration:       duration,
 				},
 				Statistics: Statistics{
 					AdmireCount:  int(admireCount),
@@ -1448,12 +1448,12 @@ func GetHistoryVideosFromDB(offset, limit int) ([]Video, error) {
 				},
 				Status: StatusInfo{
 					ListenVideoStatus: 0,
-					IsDelete:         false,
-					AllowShare:       true,
-					IsProhibited:     false,
-					InReviewing:      false,
-					PartSee:          0,
-					PrivateStatus:    0,
+					IsDelete:          false,
+					AllowShare:        true,
+					IsProhibited:      false,
+					InReviewing:       false,
+					PartSee:           0,
+					PrivateStatus:     0,
 					ReviewResult: ReviewResult{
 						ReviewStatus: 0,
 					},
@@ -1471,10 +1471,10 @@ func GetHistoryVideosFromDB(offset, limit int) ([]Video, error) {
 					CanShowComment: true,
 				},
 				Author: Author{
-					UID:        userUID,
-					Nickname:   nickname,
-					Gender:     genderToInt(gender),
-					Signature:  signature,
+					UID:       userUID,
+					Nickname:  nickname,
+					Gender:    genderToInt(gender),
+					Signature: signature,
 					Avatar168x168: Avatar{
 						URI:     avatar168URI,
 						URLList: []string{avatar168URL},
