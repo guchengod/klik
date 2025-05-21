@@ -106,7 +106,7 @@ func GetRecommendVideosFromDB(start, pageSize int) ([]Video, error) {
 			var dataSize int64
 			var fileHash, fileCS string
 			playErr := config.DB.QueryRow(playAddrQuery, videoID).Scan(
-				&playURI, &playURL, &width, &height, &dataSize, &fileHash, &fileCS,
+				&playURI, &playURL, &width, &height, &dataSize, &fileHash,
 			)
 			if playErr != nil && playErr != sql.ErrNoRows {
 				return nil, fmt.Errorf("查询视频播放地址失败: %v", playErr)
